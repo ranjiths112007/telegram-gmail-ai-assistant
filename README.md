@@ -1,114 +1,206 @@
 # Telegram Gmail AI Assistant
 
-A conversational AI assistant built with **n8n**, **Telegram**, **Gmail**, and **OpenAI**. Instead of jumping between an inbox and search bar, the user can ask questions about Gmail from Telegram and let an AI agent decide which Gmail tools to use.
+> **Talk to your Gmail from Telegram.** Search, read, understand, and send emails through a tool-using AI agent built in n8n.
 
-## What it does
+<p align="center">
+  <img src="./workflow.png" alt="Telegram Gmail AI Assistant workflow" width="900">
+</p>
 
-- Accepts natural-language requests through a Telegram bot
-- Searches Gmail using standard Gmail queries
-- Reads the full content of a selected email when needed
-- Sends emails from Gmail through the assistant
-- Maintains short-term conversation context per Telegram chat
-- Replies directly in Telegram
+<p align="center">
+  <strong>Telegram → AI Agent → Gmail Tools → Telegram</strong><br>
+  A practical example of connecting an LLM to real-world tools instead of building another standalone chatbot.
+</p>
 
-Examples:
+---
 
-> Find the latest emails from recruiters.
+## What I built
 
-> Show me emails from the last 7 days about interviews.
+Most AI demos stop at **“ask a question → generate an answer.”**
 
-> Read the full email from this sender.
+This project goes one step further: the model can decide when it needs to interact with Gmail, use the appropriate tool, and return the result through Telegram.
 
-> Draft an email to the recruiter.
+From Telegram, I can ask the assistant to:
 
-Before sending an email, the agent is instructed to show the recipient, subject, and message and request confirmation unless the user has already explicitly instructed it to send.
+- 🔎 Search Gmail using natural-language requests
+- 📩 Read the full content of a specific email
+- 🧠 Keep short-term conversation context within the chat
+- ✉️ Send an email through Gmail when instructed
+- 💬 Return the result directly inside Telegram
 
-## Architecture
+The workflow also includes a confirmation step before sending an email unless the user has explicitly instructed the assistant to send it.
+
+---
+
+## See it working
+
+### 01 — Search and interact with Gmail
+
+<p align="center">
+  <img src="./working-sample01.png" alt="Telegram Gmail AI Assistant working sample 1" width="520">
+</p>
+
+The Telegram interface is the front end. The AI agent interprets the request and decides which Gmail operation is required.
+
+### 02 — Continue the conversation
+
+<p align="center">
+  <img src="./working-sample02.png" alt="Telegram Gmail AI Assistant working sample 2" width="520">
+</p>
+
+Because conversation memory is connected to the agent, the interaction can continue naturally instead of treating every Telegram message as an isolated request.
+
+---
+
+## How it works
 
 ```text
-Telegram
-   ↓
-Telegram Trigger
-   ↓
-AI Agent ───────────────┐
-   │                    │
-   ├── OpenAI Model     │
-   ├── Conversation     │
-   │   Memory           │
-   ├── Gmail Search     │
-   ├── Gmail Read       │
-   └── Gmail Send       │
-   ↓                    │
-Reply on Telegram ◄─────┘
+┌──────────────┐
+│   Telegram   │
+│    User      │
+└──────┬───────┘
+       │ message
+       ▼
+┌──────────────────────┐
+│    Telegram Trigger  │
+└──────────┬───────────┘
+           ▼
+┌────────────────────────────────┐
+│          AI Agent              │
+│                                │
+│  OpenAI model + conversation   │
+│  memory + tool selection       │
+└───────┬─────────┬──────────────┘
+        │         │
+        │         ├──────────────► Gmail Search
+        │         ├──────────────► Gmail Read
+        │         └──────────────► Gmail Send
+        │
+        ▼
+┌──────────────────────┐
+│   Telegram Response  │
+└──────────────────────┘
 ```
+
+### The interesting part
+
+The LLM is not being used only to write text. It is connected to tools and conversation memory, so it can determine **when to search, when to retrieve an email, and when an action such as sending is appropriate.**
+
+That makes this closer to an **AI agent workflow** than a traditional chatbot.
+
+---
 
 ## Tech stack
 
-| Technology | Role |
+| Technology | Purpose |
 |---|---|
-| n8n | Workflow orchestration and AI-agent tool routing |
-| Telegram Bot API | Conversational interface |
-| OpenAI GPT-4o-mini | Natural-language reasoning |
-| Gmail | Search, read and send email operations |
-| Conversation Memory | Maintains recent chat context |
+| **n8n** | Workflow orchestration and agent/tool routing |
+| **OpenAI GPT-4o-mini** | Natural-language reasoning |
+| **Telegram Bot API** | User-facing conversational interface |
+| **Gmail** | Search, read, and send email operations |
+| **Conversation Memory** | Maintains recent context within a Telegram chat |
+
+---
 
 ## Project structure
 
 ```text
 telegram-gmail-ai-assistant/
 ├── README.md
+├── workflow.png
+├── working-sample01.png
+├── working-sample02.png
 ├── workflow/
 │   └── telegram-gmail-ai-assistant.json
 └── docs/
     └── README.md
 ```
 
-## Setup
+---
+
+## Run it yourself
 
 ### 1. Create a Telegram bot
 
-Create a bot with Telegram's BotFather and connect the bot credential in n8n.
+Create a bot with **BotFather** and connect the Telegram credential in n8n.
 
-### 2. Connect Gmail in n8n
+### 2. Connect Gmail
 
-Create/connect a Gmail OAuth2 credential with the required Gmail permissions.
+Configure a Gmail OAuth2 credential in n8n with the permissions required for searching, reading, and sending mail.
 
-### 3. Configure the OpenAI model
+### 3. Configure OpenAI
 
-Connect an OpenAI-compatible credential in n8n and select `gpt-4o-mini` for the chat model.
+Connect your own OpenAI credential and use `gpt-4o-mini` as the chat model.
 
 ### 4. Import the workflow
 
 Import:
 
-`workflow/telegram-gmail-ai-assistant.json`
+```text
+workflow/telegram-gmail-ai-assistant.json
+```
 
-Then select your own credentials for Telegram and Gmail.
+The repository version contains credential placeholders. Select your own credentials after importing it into n8n.
 
-### 5. Test
+### 5. Start chatting
 
-Open the Telegram bot and send a request such as:
+Open the Telegram bot and try requests such as:
 
-`Find emails from the last 7 days about interviews.`
+```text
+Find emails from the last 7 days about interviews.
+```
 
-The agent can use the Gmail search tool, retrieve a full email when necessary, and reply in the same Telegram chat.
+```text
+Read the latest email from this sender.
+```
+
+```text
+Send an email to the recruiter with the subject "Interview Follow-up".
+```
+
+---
 
 ## Security
 
-This repository intentionally does **not** contain live API keys, bot tokens, OAuth tokens, or private email data. Replace the credential placeholders with your own n8n credentials.
+The exported workflow in this repository is sanitized for public use:
+
+- No live API keys
+- No Telegram bot tokens
+- No OAuth access tokens
+- No private email data
+- Credential IDs are replaced with placeholders
+
+**Use your own credentials when importing the workflow. Never commit secrets to GitHub.**
+
+---
 
 ## Why I built it
 
-I wanted to move beyond a simple chatbot and understand how an AI agent can interact with real tools. The interesting part of this project is not just generating text; it is the workflow around the model: deciding when to search, when to fetch an email, when to send, and how to preserve conversation context.
+I wanted to learn what happens when an AI model is given access to actual software tools.
 
-## Future improvements
+The goal was not to make another chatbot. It was to build a small system where an LLM can **interpret a request, choose a tool, retrieve real information, maintain context, and perform an action.**
 
-- Add an approval workflow for higher-risk email actions
-- Add email categorisation and priority detection
-- Add scheduled summaries for unread or important emails
-- Add richer logging and failure handling
-- Add support for additional communication channels
+Building it also forced me to work through the less glamorous parts of AI engineering: API credentials, OAuth, workflow orchestration, tool configuration, error-prone integrations, and safely handling actions that affect real email.
 
-## Workflow file
+---
 
-The n8n export is available at [`workflow/telegram-gmail-ai-assistant.json`](workflow/telegram-gmail-ai-assistant.json).
+## What's next
+
+- Add a stronger approval flow for email-sending actions
+- Add email classification and priority detection
+- Add scheduled inbox summaries
+- Add better error handling and execution logging
+- Extend the assistant to other productivity tools
+
+---
+
+## Workflow
+
+The complete sanitized n8n export is available here:
+
+**[`workflow/telegram-gmail-ai-assistant.json`](workflow/telegram-gmail-ai-assistant.json)**
+
+---
+
+<p align="center">
+  Built with n8n · Telegram · Gmail · OpenAI
+</p>
