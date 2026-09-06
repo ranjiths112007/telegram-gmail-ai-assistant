@@ -1,79 +1,93 @@
 {
-  "name": "Telegram Gmail AI Assistant",
+  "name": "Telegram Email Assistant",
   "nodes": [
     {
-      "parameters": {"updates":["message"],"additionalFields":{}},
+      "parameters": {"updates": ["message"], "additionalFields": {}},
+      "id": "27d53904-c022-4015-a4db-ef3c810d0023",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.5,
-      "position": [0,112],
-      "credentials": {"telegramApi": {"name":"Telegram account"}}
+      "position": [0, 112],
+      "credentials": {"telegramApi": {"id": null, "name": "YOUR_TELEGRAM_CREDENTIAL"}}
     },
     {
-      "parameters": {"promptType":"define","text":"={{ $('Telegram Trigger').item.json.message.text }}","options":{"systemMessage":"You are a helpful email assistant that answers questions about and acts on the user's Gmail account over Telegram. You can look through both received and sent mail, and send emails on the user's behalf.\n\nTools:\n- search_emails: finds messages. Pass a Gmail search query in standard Gmail syntax.\n- get_email: reads a specific email's full content using its message ID.\n- send_email: sends an email from the user's Gmail account.\n\nWhen sending email, show the recipient, subject and full message body and ask for confirmation unless the user explicitly told you to send it. Be concise and conversational."}},
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {"systemMessage": "You are a helpful email assistant that answers questions about and acts on the user's Gmail account over Telegram. You can look through both received and sent mail, and send emails on the user's behalf.\n\nTools:\n- search_emails: finds messages. Pass a Gmail search query in the 'query' argument using standard Gmail search syntax (in:sent, in:inbox, from:x@y.com, to:x@y.com, subject:..., newer_than:7d, older_than:1y). Set 'limit' higher (50+) when the user asks to analyse or list across all their mail. Each result includes From, To, Subject and a snippet.\n- get_email: pass a message ID to read a specific email's full content when you need details beyond the snippet.\n- send_email: sends an email from the user's Gmail account. Provide 'to', 'subject' and 'message'. If the user refers to a recipient by name rather than an address, first use search_emails to find their address.\n\nWhen the user asks you to extract things like email addresses, names, or subjects from a set of emails, call search_emails with the right query (e.g. in:sent for sent mail), gather the From/To fields across the results, de-duplicate them, and return a clean list.\n\nIMPORTANT when sending: before calling send_email, show the user the recipient, subject and full message body in your Telegram reply and ask them to confirm. Only call send_email after the user explicitly confirms (e.g. 'yes' / 'send it'). If in a single message the user has already given all the details and clearly told you to send it, you may proceed. Never invent recipients or content the user did not ask for.\n\nBe concise and conversational since replies are shown in Telegram. If you cannot find anything relevant, say so plainly."}
+      },
+      "id": "20013885-0109-4a48-a7f6-fd9a2ddb230b",
       "name": "Email Assistant Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
-      "position": [352,112]
+      "position": [352, 112]
     },
     {
-      "parameters": {"model":{"__rl":true,"mode":"list","value":"gpt-4o-mini","cachedResultName":"gpt-4o-mini"},"builtInTools":{},"options":{}},
+      "parameters": {"model": {"__rl": true, "mode": "list", "value": "gpt-4o-mini", "cachedResultName": "gpt-4o-mini"}, "builtInTools": {}, "options": {}},
+      "id": "0c6a7d23-640c-4958-b481-5a064803d806",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
-      "position": [160,336],
-      "credentials": {"openAiApi":{"name":"Gateway credits"}}
+      "position": [160, 336],
+      "credentials": {"openAiApi": {"id": null, "name": "YOUR_OPENAI_CREDENTIAL"}}
     },
     {
-      "parameters": {"sessionIdType":"customKey","sessionKey":"={{ $('Telegram Trigger').item.json.message.chat.id }}","contextWindowLength":10},
+      "parameters": {"sessionIdType": "customKey", "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}", "contextWindowLength": 10},
+      "id": "9f3cd1e1-ed4f-4389-8112-e2b8b5eb84d4",
       "name": "Conversation Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
-      "position": [352,288]
+      "position": [352, 288]
     },
     {
-      "parameters": {"operation":"getAll","limit":"={{ $fromAI('limit', 'How many emails to return, 1-100. Use 50 or more when the user asks to analyse or list across all their mail.', 'number', 20) }}","filters":{"q":"={{ $fromAI('query', 'A Gmail search query using standard Gmail search syntax. Examples: in:sent, in:inbox, from:someone@example.com, to:someone@example.com, subject:invoice, newer_than:7d, older_than:1y. Leave empty to search everything.', 'string', '') }}","readStatus":"both"}},
+      "parameters": {"operation": "getAll", "limit": "={{ $fromAI('limit', 'How many emails to return, 1-100. Use 50 or more when the user asks to analyse or list across all their mail.', 'number', 20) }}", "filters": {"q": "={{ $fromAI('query', 'A Gmail search query using standard Gmail search syntax. Examples: in:sent (sent mail), in:inbox, from:someone@example.com, to:someone@example.com, subject:invoice, newer_than:7d, older_than:1y. Leave empty to search everything.', 'string', '') }}", "readStatus": "both"}},
+      "id": "54dfd092-1c5b-4732-825c-58cc38947fc0",
       "name": "search_emails",
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
-      "position": [480,400],
-      "credentials": {"gmailOAuth2":{"name":"Gmail account"}}
+      "position": [480, 400],
+      "credentials": {"gmailOAuth2": {"id": null, "name": "YOUR_GMAIL_CREDENTIAL"}}
     },
     {
-      "parameters": {"operation":"get","messageId":"={{ $fromAI('messageId', 'The Gmail message ID to fetch the full email for', 'string') }}","simple":false,"options":{}},
+      "parameters": {"operation": "get", "messageId": "={{ $fromAI('messageId', 'The Gmail message ID to fetch the full email for', 'string') }}", "simple": false, "options": {}},
+      "id": "d81930bd-491a-4f30-a1f8-8ba4a71fc5cc",
       "name": "get_email",
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
-      "position": [624,448],
-      "credentials": {"gmailOAuth2":{"name":"Gmail account"}}
+      "position": [624, 448],
+      "credentials": {"gmailOAuth2": {"id": null, "name": "YOUR_GMAIL_CREDENTIAL"}}
     },
     {
-      "parameters": {"sendTo":"={{ $fromAI('to', 'The recipient email address(es), comma-separated.', 'string') }}","subject":"={{ $fromAI('subject', 'A short subject line for the email.', 'string') }}","emailType":"text","message":"={{ $fromAI('message', 'The full body text of the email to send.', 'string') }}","options":{}},
+      "parameters": {"sendTo": "={{ $fromAI('to', 'The recipient email address(es), comma-separated. If the user gives a name, first use search_emails to find the correct address.', 'string') }}", "subject": "={{ $fromAI('subject', 'A short subject line for the email.', 'string') }}", "emailType": "text", "message": "={{ $fromAI('message', 'The full body text of the email to send.', 'string') }}", "options": {}},
+      "id": "682ecc4d-1bb3-46fb-b698-65d57ec6de88",
       "name": "send_email",
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
-      "position": [672,224],
-      "credentials": {"gmailOAuth2":{"name":"Gmail account"}}
+      "position": [672, 224],
+      "credentials": {"gmailOAuth2": {"id": null, "name": "YOUR_GMAIL_CREDENTIAL"}}
     },
     {
-      "parameters": {"chatId":"={{ $('Telegram Trigger').item.json.message.chat.id }}","text":"={{ $json.output }}","additionalFields":{}},
+      "parameters": {"chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}", "text": "={{ $json.output }}", "additionalFields": {}},
+      "id": "824ddf96-3e26-4b2c-8f78-37a7af6568b8",
       "name": "Reply on Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [816,112],
-      "credentials": {"telegramApi":{"name":"Telegram account"}}
+      "position": [816, 112],
+      "credentials": {"telegramApi": {"id": null, "name": "YOUR_TELEGRAM_CREDENTIAL"}}
     }
   ],
+  "pinData": {},
   "connections": {
-    "Telegram Trigger":{"main":[[{"node":"Email Assistant Agent","type":"main","index":0}]]},
-    "Email Assistant Agent":{"main":[[{"node":"Reply on Telegram","type":"main","index":0}]]},
-    "OpenAI Chat Model":{"ai_languageModel":[[{"node":"Email Assistant Agent","type":"ai_languageModel","index":0}]]},
-    "Conversation Memory":{"ai_memory":[[{"node":"Email Assistant Agent","type":"ai_memory","index":0}]]},
-    "search_emails":{"ai_tool":[[{"node":"Email Assistant Agent","type":"ai_tool","index":0}]]},
-    "get_email":{"ai_tool":[[{"node":"Email Assistant Agent","type":"ai_tool","index":0}]]},
-    "send_email":{"ai_tool":[[{"node":"Email Assistant Agent","type":"ai_tool","index":0}]]}
+    "Telegram Trigger": {"main": [[{"node": "Email Assistant Agent", "type": "main", "index": 0}]]},
+    "Email Assistant Agent": {"main": [[{"node": "Reply on Telegram", "type": "main", "index": 0}]]},
+    "OpenAI Chat Model": {"ai_languageModel": [[{"node": "Email Assistant Agent", "type": "ai_languageModel", "index": 0}]]},
+    "Conversation Memory": {"ai_memory": [[{"node": "Email Assistant Agent", "type": "ai_memory", "index": 0}]]},
+    "search_emails": {"ai_tool": [[{"node": "Email Assistant Agent", "type": "ai_tool", "index": 0}]]},
+    "get_email": {"ai_tool": [[{"node": "Email Assistant Agent", "type": "ai_tool", "index": 0}]]},
+    "send_email": {"ai_tool": [[{"node": "Email Assistant Agent", "type": "ai_tool", "index": 0}]]}
   },
-  "active": false,
-  "settings": {"executionOrder":"v1"},
-  "pinData": {}
+  "active": true,
+  "settings": {"executionOrder": "v1", "binaryMode": "separate"},
+  "nodeGroups": [],
+  "tags": []
 }
