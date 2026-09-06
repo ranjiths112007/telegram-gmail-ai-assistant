@@ -21,11 +21,11 @@ This project goes one step further: the model can decide when it needs to intera
 
 From Telegram, I can ask the assistant to:
 
-- 🔎 Search Gmail using natural-language requests
-- 📩 Read the full content of a specific email
-- 🧠 Keep short-term conversation context within the chat
-- ✉️ Send an email through Gmail when instructed
-- 💬 Return the result directly inside Telegram
+-  Search Gmail using natural-language requests
+-  Read the full content of a specific email
+-  Keep short-term conversation context within the chat
+-  Send an email through Gmail when instructed
+-  Return the result directly inside Telegram
 
 The workflow also includes a confirmation step before sending an email unless the user has explicitly instructed the assistant to send it.
 
