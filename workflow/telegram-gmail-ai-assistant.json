@@ -1,0 +1,79 @@
+{
+  "name": "Telegram Gmail AI Assistant",
+  "nodes": [
+    {
+      "parameters": {"updates":["message"],"additionalFields":{}},
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [0,112],
+      "credentials": {"telegramApi": {"name":"Telegram account"}}
+    },
+    {
+      "parameters": {"promptType":"define","text":"={{ $('Telegram Trigger').item.json.message.text }}","options":{"systemMessage":"You are a helpful email assistant that answers questions about and acts on the user's Gmail account over Telegram. You can look through both received and sent mail, and send emails on the user's behalf.\n\nTools:\n- search_emails: finds messages. Pass a Gmail search query in standard Gmail syntax.\n- get_email: reads a specific email's full content using its message ID.\n- send_email: sends an email from the user's Gmail account.\n\nWhen sending email, show the recipient, subject and full message body and ask for confirmation unless the user explicitly told you to send it. Be concise and conversational."}},
+      "name": "Email Assistant Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [352,112]
+    },
+    {
+      "parameters": {"model":{"__rl":true,"mode":"list","value":"gpt-4o-mini","cachedResultName":"gpt-4o-mini"},"builtInTools":{},"options":{}},
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [160,336],
+      "credentials": {"openAiApi":{"name":"Gateway credits"}}
+    },
+    {
+      "parameters": {"sessionIdType":"customKey","sessionKey":"={{ $('Telegram Trigger').item.json.message.chat.id }}","contextWindowLength":10},
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [352,288]
+    },
+    {
+      "parameters": {"operation":"getAll","limit":"={{ $fromAI('limit', 'How many emails to return, 1-100. Use 50 or more when the user asks to analyse or list across all their mail.', 'number', 20) }}","filters":{"q":"={{ $fromAI('query', 'A Gmail search query using standard Gmail search syntax. Examples: in:sent, in:inbox, from:someone@example.com, to:someone@example.com, subject:invoice, newer_than:7d, older_than:1y. Leave empty to search everything.', 'string', '') }}","readStatus":"both"}},
+      "name": "search_emails",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [480,400],
+      "credentials": {"gmailOAuth2":{"name":"Gmail account"}}
+    },
+    {
+      "parameters": {"operation":"get","messageId":"={{ $fromAI('messageId', 'The Gmail message ID to fetch the full email for', 'string') }}","simple":false,"options":{}},
+      "name": "get_email",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [624,448],
+      "credentials": {"gmailOAuth2":{"name":"Gmail account"}}
+    },
+    {
+      "parameters": {"sendTo":"={{ $fromAI('to', 'The recipient email address(es), comma-separated.', 'string') }}","subject":"={{ $fromAI('subject', 'A short subject line for the email.', 'string') }}","emailType":"text","message":"={{ $fromAI('message', 'The full body text of the email to send.', 'string') }}","options":{}},
+      "name": "send_email",
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [672,224],
+      "credentials": {"gmailOAuth2":{"name":"Gmail account"}}
+    },
+    {
+      "parameters": {"chatId":"={{ $('Telegram Trigger').item.json.message.chat.id }}","text":"={{ $json.output }}","additionalFields":{}},
+      "name": "Reply on Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [816,112],
+      "credentials": {"telegramApi":{"name":"Telegram account"}}
+    }
+  ],
+  "connections": {
+    "Telegram Trigger":{"main":[[{"node":"Email Assistant Agent","type":"main","index":0}]]},
+    "Email Assistant Agent":{"main":[[{"node":"Reply on Telegram","type":"main","index":0}]]},
+    "OpenAI Chat Model":{"ai_languageModel":[[{"node":"Email Assistant Agent","type":"ai_languageModel","index":0}]]},
+    "Conversation Memory":{"ai_memory":[[{"node":"Email Assistant Agent","type":"ai_memory","index":0}]]},
+    "search_emails":{"ai_tool":[[{"node":"Email Assistant Agent","type":"ai_tool","index":0}]]},
+    "get_email":{"ai_tool":[[{"node":"Email Assistant Agent","type":"ai_tool","index":0}]]},
+    "send_email":{"ai_tool":[[{"node":"Email Assistant Agent","type":"ai_tool","index":0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder":"v1"},
+  "pinData": {}
+}
