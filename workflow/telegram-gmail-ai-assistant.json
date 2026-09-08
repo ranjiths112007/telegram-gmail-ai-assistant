@@ -12,15 +12,57 @@
     },
     {
       "parameters": {
+        "assignments": {"assignments": [{"id": "pairing-code", "name": "pairingCode", "value": "YOUR_ONE_TIME_PAIRING_CODE", "type": "string"}]},
+        "options": {}
+      },
+      "id": "c4d8e9a0-8b3a-4b20-9c79-0a7e6f5d4c3b",
+      "name": "Pairing Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [192, -128]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const store = $getWorkflowStaticData('global');\nconst configuredCode = $('Pairing Configuration').first().json.pairingCode;\nconst message = $input.first().json.message || {};\nconst chatId = message.chat?.id;\nconst text = (message.text || '').trim();\n\nif (!chatId) {\n  return [{json: {readyForAgent: false, authMessage: 'Unable to identify this Telegram account.'}}];\n}\n\nstore.authorizedUsers = store.authorizedUsers || {};\nconst userKey = String(chatId);\n\n// Already paired: allow normal Gmail assistant usage.\nif (store.authorizedUsers[userKey] === true) {\n  return [{json: {readyForAgent: true}}];\n}\n\n// One-time pairing command: /pair YOUR_CODE\nif (text.toLowerCase().startsWith('/pair ')) {\n  const suppliedCode = text.slice(6).trim();\n\n  if (suppliedCode && configuredCode !== 'YOUR_ONE_TIME_PAIRING_CODE' && suppliedCode === configuredCode) {\n    store.authorizedUsers[userKey] = true;\n    return [{json: {readyForAgent: false, authMessage: '✅ Telegram account connected successfully. You can now use the Gmail Assistant.'}}];\n  }\n\n  return [{json: {readyForAgent: false, authMessage: '❌ Invalid or expired pairing code.'}}];\n}\n\nreturn [{json: {readyForAgent: false, authMessage: '🔒 This Telegram account is not connected. Use /pair <pairing-code> to connect it.'}}];"
+      },
+      "id": "2e8f3a1b-7c6d-4e5f-9a0b-1c2d3e4f5a6b",
+      "name": "Authorization Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [384, -16]
+    },
+    {
+      "parameters": {
+        "conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2}, "conditions": [{"id": "ready-check", "leftValue": "={{ $json.readyForAgent }}", "rightValue": true, "operator": {"type": "boolean", "operation": "true", "singleValue": true}}], "combinator": "and"},
+        "options": {}
+      },
+      "id": "5f1a2b3c-4d5e-6f70-8a9b-0c1d2e3f4a5b",
+      "name": "Authorized?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [576, -16]
+    },
+    {
+      "parameters": {"chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}", "text": "={{ $json.authMessage }}", "additionalFields": {}},
+      "id": "6b5a4c3d-2e1f-0a9b-8c7d-6e5f4a3b2c1d",
+      "name": "Authorization Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [800, -144],
+      "credentials": {"telegramApi": {"id": null, "name": "YOUR_TELEGRAM_CREDENTIAL"}}
+    },
+    {
+      "parameters": {
         "promptType": "define",
         "text": "={{ $('Telegram Trigger').item.json.message.text }}",
-        "options": {"systemMessage": "You are a helpful email assistant that answers questions about and acts on the user's Gmail account over Telegram. You can look through both received and sent mail, and send emails on the user's behalf.\n\nTools:\n- search_emails: finds messages. Pass a Gmail search query in the 'query' argument using standard Gmail search syntax (in:sent, in:inbox, from:x@y.com, to:x@y.com, subject:..., newer_than:7d, older_than:1y). Set 'limit' higher (50+) when the user asks to analyse or list across all their mail. Each result includes From, To, Subject and a snippet.\n- get_email: pass a message ID to read a specific email's full content when you need details beyond the snippet.\n- send_email: sends an email from the user's Gmail account. Provide 'to', 'subject' and 'message'. If the user refers to a recipient by name rather than an address, first use search_emails to find their address.\n\nWhen the user asks you to extract things like email addresses, names, or subjects from a set of emails, call search_emails with the right query (e.g. in:sent for sent mail), gather the From/To fields across the results, de-duplicate them, and return a clean list.\n\nIMPORTANT when sending: before calling send_email, show the user the recipient, subject and full message body in your Telegram reply and ask them to confirm. Only call send_email after the user explicitly confirms (e.g. 'yes' / 'send it'). If in a single message the user has already given all the details and clearly told you to send it, you may proceed. Never invent recipients or content the user did not ask for.\n\nBe concise and conversational since replies are shown in Telegram. If you cannot find anything relevant, say so plainly."}
+        "options": {"systemMessage": "You are a helpful email assistant that answers questions about and acts on the user's Gmail account over Telegram. You can look through both received and sent mail, and send emails on the user's behalf.\n\nTools:\n- search_emails: finds messages. Pass a Gmail search query in the 'query' argument using standard Gmail search syntax (in:sent, in:inbox, from:x@y.com, to:x@y.com, subject:..., newer_than:7d, older_than:1y). Set 'limit' higher (50+) when the user asks to analyse or list across all their mail. Each result includes From, To, Subject and a snippet.\n- get_email: pass a message ID to read a specific email's full content when you need details beyond the snippet.\n- send_email: sends an email from the user's Gmail account. Provide 'to', 'subject' and 'message'. If the user refers to a recipient by name rather than an address, first use search_emails to find their address.\n\nWhen the user asks you to extract things like email addresses, names, or subjects from a set of emails, call search_emails with the right query (e.g. in:sent for sent mail), gather the From/To fields across the results, de-duplicate them, and return a clean list.\n\nIMPORTANT when sending: before calling send_email, show the user the recipient, subject and full message body in your Telegram reply and ask them to confirm. Only call send_email after the user explicitly confirms (e.g. 'yes' / 'send it'). If in a single message the user has already given all the details and clearly told you to send it, you may proceed. Never invent recipients or content the user did not ask for.\n\nBe concise and conversational since replies are shown in Telegram. If you cannot find anything relevant, say so plainly.\n\nSecurity note: Telegram authorization is handled before you receive messages. Never ask users for pairing codes or credentials inside Gmail conversations."}
       },
       "id": "20013885-0109-4a48-a7f6-fd9a2ddb230b",
       "name": "Email Assistant Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
-      "position": [352, 112]
+      "position": [800, 112]
     },
     {
       "parameters": {"model": {"__rl": true, "mode": "list", "value": "gpt-4o-mini", "cachedResultName": "gpt-4o-mini"}, "builtInTools": {}, "options": {}},
@@ -28,7 +70,7 @@
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
-      "position": [160, 336],
+      "position": [608, 336],
       "credentials": {"openAiApi": {"id": null, "name": "YOUR_OPENAI_CREDENTIAL"}}
     },
     {
@@ -37,7 +79,7 @@
       "name": "Conversation Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
-      "position": [352, 288]
+      "position": [800, 288]
     },
     {
       "parameters": {"operation": "getAll", "limit": "={{ $fromAI('limit', 'How many emails to return, 1-100. Use 50 or more when the user asks to analyse or list across all their mail.', 'number', 20) }}", "filters": {"q": "={{ $fromAI('query', 'A Gmail search query using standard Gmail search syntax. Examples: in:sent (sent mail), in:inbox, from:someone@example.com, to:someone@example.com, subject:invoice, newer_than:7d, older_than:1y. Leave empty to search everything.', 'string', '') }}", "readStatus": "both"}},
@@ -45,7 +87,7 @@
       "name": "search_emails",
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
-      "position": [480, 400],
+      "position": [928, 400],
       "credentials": {"gmailOAuth2": {"id": null, "name": "YOUR_GMAIL_CREDENTIAL"}}
     },
     {
@@ -54,7 +96,7 @@
       "name": "get_email",
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
-      "position": [624, 448],
+      "position": [1072, 448],
       "credentials": {"gmailOAuth2": {"id": null, "name": "YOUR_GMAIL_CREDENTIAL"}}
     },
     {
@@ -63,7 +105,7 @@
       "name": "send_email",
       "type": "n8n-nodes-base.gmailTool",
       "typeVersion": 2.2,
-      "position": [672, 224],
+      "position": [1120, 224],
       "credentials": {"gmailOAuth2": {"id": null, "name": "YOUR_GMAIL_CREDENTIAL"}}
     },
     {
@@ -72,13 +114,16 @@
       "name": "Reply on Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [816, 112],
+      "position": [1264, 112],
       "credentials": {"telegramApi": {"id": null, "name": "YOUR_TELEGRAM_CREDENTIAL"}}
     }
   ],
   "pinData": {},
   "connections": {
-    "Telegram Trigger": {"main": [[{"node": "Email Assistant Agent", "type": "main", "index": 0}]]},
+    "Telegram Trigger": {"main": [[{"node": "Authorization Guard", "type": "main", "index": 0}]]},
+    "Pairing Configuration": {"main": [[{"node": "Authorization Guard", "type": "main", "index": 0}]]},
+    "Authorization Guard": {"main": [[{"node": "Authorized?", "type": "main", "index": 0}]]},
+    "Authorized?": {"main": [[{"node": "Email Assistant Agent", "type": "main", "index": 0}], [{"node": "Authorization Reply", "type": "main", "index": 0}]]},
     "Email Assistant Agent": {"main": [[{"node": "Reply on Telegram", "type": "main", "index": 0}]]},
     "OpenAI Chat Model": {"ai_languageModel": [[{"node": "Email Assistant Agent", "type": "ai_languageModel", "index": 0}]]},
     "Conversation Memory": {"ai_memory": [[{"node": "Email Assistant Agent", "type": "ai_memory", "index": 0}]]},
